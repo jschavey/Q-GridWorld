@@ -57,7 +57,7 @@ public abstract class Environment : MonoBehaviour {
 		
 	}
 
-	public virtual List<float> collectState() {
+	public virtual List<float> collectState(GameObject visualAgent) {
 		List<float> state = new List<float> ();
 		return state;
 	}
@@ -93,7 +93,11 @@ public abstract class Environment : MonoBehaviour {
 	}
 
 	public virtual void EndStep() {
-		agent.SendState (collectState(), reward, done);
+		// GameObject[] visualAgents = GameObject.FindGameObjectsWithTag("agent");
+		// foreach (GameObject visualAgent in visualAgents)
+		// {
+		// 	agent.SendState (collectState(visualAgent), reward, done);
+		// }
 		skippingFrames = false;
 		acceptingSteps = true;
 	}
@@ -107,7 +111,11 @@ public abstract class Environment : MonoBehaviour {
 	}
 
 	public virtual void EndReset() {
-		agent.SendState (collectState(), reward, done);
+		// GameObject[] visualAgents = GameObject.FindGameObjectsWithTag("agent");
+		// foreach (GameObject visualAgent in visualAgents)
+		// {
+		// 	agent.SendState (collectState(visualAgent), reward, done);
+		// }
 		skippingFrames = false;
 		acceptingSteps = true;
 		begun = true;

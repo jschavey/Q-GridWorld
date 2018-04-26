@@ -13,6 +13,10 @@ public class Agent {
 		return new float[1] { 0.0f };
 	}
 
+	public virtual float[] GetAction(UnityEngine.GameObject visualAgent, int gridSize) {
+		return new float[1] { 0.0f };
+	}
+
 	public virtual float[] GetValue() {
 		float[] value = new float[1];
 		return value;

@@ -9,8 +9,8 @@ public class InternalAgent : Agent {
 	int action = -1;
     float gamma = 0.99f; // Discount factor for calculating Q-target.
     float e = 1; // Initial epsilon value for random action selection.
-    float eMin = 0.1f; // Lower bound of epsilon.
-    int annealingSteps = 2000; // Number of steps to lower e to eMin.
+    float eMin = 0.01f; // Lower bound of epsilon.
+    int annealingSteps = 20000; // Number of steps to lower e to eMin.
     int lastState;
 
 	public override void SendParameters (EnvironmentParameters env)
@@ -35,6 +35,22 @@ public class InternalAgent : Agent {
         if (e > eMin) { e = e - ((1f - eMin) / (float)annealingSteps); }
         GameObject.Find("ETxt").GetComponent<Text>().text = "Epsilon: " + e.ToString("F2");
         float currentQ = q_table[lastState][action];
+        GameObject.Find("QTxt").GetComponent<Text>().text = "Current Q-value: " + currentQ.ToString("F2");
+		return new float[1] {action};
+	}
+
+	/// <summary>
+    /// Picks an action to take from its current state.
+	/// </summary>
+	/// <returns>The action choosen by the agent's policy</returns>
+	public override float[] GetAction(GameObject visualAgent, int gridSize) {
+        Random.seed = (int)System.DateTime.Now.Ticks;
+        int point = (int)((gridSize * visualAgent.transform.position.x) + visualAgent.transform.position.z);
+        action = q_table[point].ToList().IndexOf(q_table[point].Max());
+        if (Random.Range(0f, 1f) < e) { action = Random.Range(0, 3); }
+        if (e > eMin) { e = e - ((1f - eMin) / (float)annealingSteps); }
+        GameObject.Find("ETxt").GetComponent<Text>().text = "Epsilon: " + e.ToString("F2");
+        float currentQ = q_table[point][action];
         GameObject.Find("QTxt").GetComponent<Text>().text = "Current Q-value: " + currentQ.ToString("F2");
 		return new float[1] {action};
 	}

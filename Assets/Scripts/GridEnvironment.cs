@@ -8,7 +8,6 @@ public class GridEnvironment : Environment
 
     public List<GameObject> actorObjs;
     public string[] players;
-    public GameObject visualAgent;
     int numObstacles;
     int numGoals;
     int gridSize;
@@ -28,7 +27,7 @@ public class GridEnvironment : Environment
     public void BeginNewGame()
     {
         int gridSizeSet = (GameObject.Find("Dropdown").GetComponent<Dropdown>().value + 1) * 5;
-        numGoals = 1;
+        numGoals = 10;
         numObstacles = Mathf.FloorToInt((gridSizeSet * gridSizeSet) / 10f);
         gridSize = gridSizeSet;
 
@@ -58,7 +57,7 @@ public class GridEnvironment : Environment
             env_name = "GridWorld",
             action_space_type = "discrete",
             state_space_type = "discrete",
-            num_agents = 1
+            num_agents = 10
         };
 
         List<string> playersList = new List<string>();
@@ -67,7 +66,11 @@ public class GridEnvironment : Environment
         {
             playersList.Add("pit");
         }
-        playersList.Add("agent");
+
+        for (int i = 0; i < envParameters.num_agents; i++)
+        {
+            playersList.Add("agent");
+        }
 
         for (int i = 0; i < numGoals; i++)
         {
@@ -91,17 +94,13 @@ public class GridEnvironment : Environment
     /// Gets the agent's current position and transforms it into a discrete integer state.
     /// </summary>
     /// <returns>The state.</returns>
-    public override List<float> collectState()
+    public override List<float> collectState(GameObject visualAgent)
     {
         List<float> state = new List<float>();
-        foreach (GameObject actor in actorObjs)
-        {
-            if (actor.tag == "agent")
-            {
-                float point = (gridSize * actor.transform.position.x) + actor.transform.position.z;
-                state.Add(point);
-            }
-        }
+        
+        float point = (gridSize * visualAgent.transform.position.x) + visualAgent.transform.position.z;
+        state.Add(point);
+    
         return state;
     }
 
@@ -165,21 +164,26 @@ public class GridEnvironment : Environment
 
         foreach (GameObject actor in actorObjs)
         {
-            DestroyImmediate(actor);
+            if (actor.tag != "agent") 
+            {
+                DestroyImmediate(actor);
+            }
         }
         actorObjs = new List<GameObject>();
 
+        actorObjs.AddRange(GameObject.FindGameObjectsWithTag("agent"));
+
         for (int i = 0; i < players.Length; i++)
-        {
-            int x = (objectPositions[i]) / gridSize;
-            int y = (objectPositions[i]) % gridSize;
-            GameObject actorObj = (GameObject)GameObject.Instantiate(Resources.Load(players[i]));
-            actorObj.transform.position = new Vector3(x, 0.0f, y);
-            actorObj.name = players[i];
-            actorObjs.Add(actorObj);
-            if (players[i] == "agent")
+        {   
+            if (players[i] != "agent" || (players[i] == "agent" && GameObject.FindGameObjectsWithTag("agent").Count() < envParameters.num_agents))
             {
-                visualAgent = actorObj;
+                int x = (objectPositions[i]) / gridSize;
+                int y = (objectPositions[i]) % gridSize;
+ 
+                GameObject actorObj = (GameObject)GameObject.Instantiate(Resources.Load(players[i]));
+                actorObj.transform.position = new Vector3(x, 0.0f, y);
+                actorObj.name = players[i];
+                actorObjs.Add(actorObj);
             }
         }
         episodeReward = 0;
@@ -193,53 +197,79 @@ public class GridEnvironment : Environment
     public override void MiddleStep(int action)
     {
         reward = -0.05f;
-        // 0 - Forward, 1 - Backward, 2 - Left, 3 - Right
-        if (action == 3)
-        {
-            Collider[] blockTest = Physics.OverlapBox(new Vector3(visualAgent.transform.position.x + 1, 0, visualAgent.transform.position.z), new Vector3(0.3f, 0.3f, 0.3f));
-            if (blockTest.Where(col => col.gameObject.tag == "wall").ToArray().Length == 0)
-            {
-                visualAgent.transform.position = new Vector3(visualAgent.transform.position.x + 1, 0, visualAgent.transform.position.z);
-            }
-        }
 
-        if (action == 2)
+        foreach (GameObject actor in actorObjs)
         {
-            Collider[] blockTest = Physics.OverlapBox(new Vector3(visualAgent.transform.position.x - 1, 0, visualAgent.transform.position.z), new Vector3(0.3f, 0.3f, 0.3f));
-            if (blockTest.Where(col => col.gameObject.tag == "wall").ToArray().Length == 0)
+            if (actor.tag == "agent")
             {
-                visualAgent.transform.position = new Vector3(visualAgent.transform.position.x - 1, 0, visualAgent.transform.position.z);
-            }
-        }
+                float[] actions = agent.GetAction(actor, gridSize);
+                action = Mathf.FloorToInt(actions [0]);
+                // 0 - Forward, 1 - Backward, 2 - Left, 3 - Right
+                if (action == 3)
+                {
+                    Collider[] blockTest = Physics.OverlapBox(new Vector3(actor.transform.position.x + 1, 0, actor.transform.position.z), new Vector3(0.3f, 0.3f, 0.3f));
+                    if (blockTest.Where(col => col.gameObject.tag == "wall").ToArray().Length == 0)
+                    {
+                        actor.transform.position = new Vector3(actor.transform.position.x + 1, 0, actor.transform.position.z);
+                    }
+                    else
+                    {
+                        actor.transform.position = new Vector3(actor.transform.position.x - 1, 0, actor.transform.position.z);
+                    }
+                }
 
-        if (action == 0)
-        {
-            Collider[] blockTest = Physics.OverlapBox(new Vector3(visualAgent.transform.position.x, 0, visualAgent.transform.position.z + 1), new Vector3(0.3f, 0.3f, 0.3f));
-            if (blockTest.Where(col => col.gameObject.tag == "wall").ToArray().Length == 0)
-            {
-                visualAgent.transform.position = new Vector3(visualAgent.transform.position.x, 0, visualAgent.transform.position.z + 1);
-            }
-        }
+                if (action == 2)
+                {
+                    Collider[] blockTest = Physics.OverlapBox(new Vector3(actor.transform.position.x - 1, 0, actor.transform.position.z), new Vector3(0.3f, 0.3f, 0.3f));
+                    if (blockTest.Where(col => col.gameObject.tag == "wall").ToArray().Length == 0)
+                    {
+                        actor.transform.position = new Vector3(actor.transform.position.x - 1, 0, actor.transform.position.z);
+                    }
+                    else
+                    {
+                        actor.transform.position = new Vector3(actor.transform.position.x + 1, 0, actor.transform.position.z);
+                    }
+                }
 
-        if (action == 1)
-        {
-            Collider[] blockTest = Physics.OverlapBox(new Vector3(visualAgent.transform.position.x, 0, visualAgent.transform.position.z - 1), new Vector3(0.3f, 0.3f, 0.3f));
-            if (blockTest.Where(col => col.gameObject.tag == "wall").ToArray().Length == 0)
-            {
-                visualAgent.transform.position = new Vector3(visualAgent.transform.position.x, 0, visualAgent.transform.position.z - 1);
-            }
-        }
+                if (action == 0)
+                {
+                    Collider[] blockTest = Physics.OverlapBox(new Vector3(actor.transform.position.x, 0, actor.transform.position.z + 1), new Vector3(0.3f, 0.3f, 0.3f));
+                    if (blockTest.Where(col => col.gameObject.tag == "wall").ToArray().Length == 0)
+                    {
+                        actor.transform.position = new Vector3(actor.transform.position.x, 0, actor.transform.position.z + 1);
+                    }
+                    else
+                    {
+                        actor.transform.position = new Vector3(actor.transform.position.x, 0, actor.transform.position.z - 1);
+                    }
+                }
 
-        Collider[] hitObjects = Physics.OverlapBox(visualAgent.transform.position, new Vector3(0.3f, 0.3f, 0.3f));
-        if (hitObjects.Where(col => col.gameObject.tag == "goal").ToArray().Length == 1)
-        {
-            reward = 1;
-            done = true;
-        }
-        if (hitObjects.Where(col => col.gameObject.tag == "pit").ToArray().Length == 1)
-        {
-            reward = -1;
-            done = true;
+                if (action == 1)
+                {
+                    Collider[] blockTest = Physics.OverlapBox(new Vector3(actor.transform.position.x, 0, actor.transform.position.z - 1), new Vector3(0.3f, 0.3f, 0.3f));
+                    if (blockTest.Where(col => col.gameObject.tag == "wall").ToArray().Length == 0)
+                    {
+                        actor.transform.position = new Vector3(actor.transform.position.x, 0, actor.transform.position.z - 1);
+                    }
+                    else
+                    {
+                        actor.transform.position = new Vector3(actor.transform.position.x, 0, actor.transform.position.z + 1);
+                    }
+                }
+
+                Collider[] hitObjects = Physics.OverlapBox(actor.transform.position, new Vector3(0.3f, 0.3f, 0.3f));
+                if (hitObjects.Where(col => col.gameObject.tag == "goal").ToArray().Length == 1)
+                {
+                    reward = 1;
+                    done = true;
+                }
+                if (hitObjects.Where(col => col.gameObject.tag == "pit").ToArray().Length == 1)
+                {
+                    reward = -1;
+                    done = true;
+                }
+                agent.SendState(collectState(actor), reward, done);
+            }
         }
 
         LoadSpheres();
